@@ -30,7 +30,8 @@ class RoomManager {
             players: new Map(), // playerId -> { ws, name, element, isReady, isHost }
             spectators: new Map(), // spectatorId -> { ws, name }
             connectionStates: new Map(), // playerId -> { ws, initialized, isSpectator }
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            gameStarted: false
         };
 
         this.rooms.set(roomId, room);
@@ -44,10 +45,10 @@ class RoomManager {
     }
 
     findOrCreatePublicRoom() {
-        // Find a public room with space
+        // Find a public room with space and not started
         for (const roomId of this.publicRooms) {
             const room = this.rooms.get(roomId);
-            if (room && room.players.size < this.MAX_PLAYERS) {
+            if (room && room.players.size < this.MAX_PLAYERS && !room.gameStarted) {
                 return room;
             }
         }
@@ -77,6 +78,10 @@ class RoomManager {
     addPlayerToRoom(roomId, playerId, ws, name, element = null) {
         const room = this.rooms.get(roomId);
         if (!room) return null;
+
+        if (room.gameStarted) {
+            return { error: 'GAME_STARTED' };
+        }
 
         if (room.players.size >= this.MAX_PLAYERS) {
             return { error: 'ROOM_FULL' };

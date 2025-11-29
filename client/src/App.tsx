@@ -21,6 +21,8 @@ function App() {
     chatMessages,
     connectionError,
     isConnecting,
+    isKicked,
+    setIsKicked,
     joinPublicGame,
     joinPrivateGame,
     createPrivateRoom,
@@ -93,9 +95,78 @@ function App() {
     return available;
   };
 
+  const handleKickedClose = () => {
+    setIsKicked(false);
+    setShowLogin(true);
+    setLoginError('');
+  };
+
   return (
     <div className="App">
-      {showLogin ? (
+      {isKicked ? (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: '#F5F5DC',
+            padding: '40px',
+            borderRadius: '20px',
+            maxWidth: '500px',
+            textAlign: 'center',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h2 style={{
+              margin: '0 0 20px 0',
+              fontSize: '28px',
+              color: '#FF6B6B',
+              fontWeight: 'bold'
+            }}>
+              ⚠️ You Have Been Kicked
+            </h2>
+            <p style={{
+              margin: '0 0 30px 0',
+              fontSize: '18px',
+              color: '#333',
+              lineHeight: '1.5'
+            }}>
+              You have been removed from the room by the host.
+            </p>
+            <button
+              onClick={handleKickedClose}
+              style={{
+                padding: '15px 40px',
+                background: '#4ECDC4',
+                border: '2px solid #000',
+                borderRadius: '15px',
+                color: '#000',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#3AB8B0';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#4ECDC4';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              Return to Menu
+            </button>
+          </div>
+        </div>
+      ) : showLogin ? (
         <LoginScreen
           onJoinPublic={handleJoinPublic}
           onJoinPrivate={handleJoinPrivate}

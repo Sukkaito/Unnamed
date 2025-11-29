@@ -172,11 +172,7 @@ function handleSetReady(playerId, ws, message) {
     const success = roomManager.setPlayerReady(roomId, playerId, message.isReady);
     if (success) {
         broadcastLobbyState(roomId);
-        
-        // Check if all players are ready
-        if (roomManager.areAllPlayersReady(roomId) && roomManager.getPlayerCount(roomId) >= 2) {
-            startGame(roomId);
-        }
+        // Game will only start when host clicks Start Game button
     }
 }
 
@@ -245,18 +241,67 @@ function handleKickPlayer(playerId, ws, message) {
 
 function handleStartGame(playerId, ws) {
     const roomId = playerRoomMap.get(playerId);
-    if (!roomId) return;
+    if (!roomId) {
+        ws.send(JSON.stringify({
+            type: 'GAME_START_ERROR',
+            error: 'ROOM_NOT_FOUND',
+            message: 'Room not found'
+        }));
+        return;
+    }
 
     const room = roomManager.getRoom(roomId);
-    if (!room) return;
+    if (!room) {
+        ws.send(JSON.stringify({
+            type: 'GAME_START_ERROR',
+            error: 'ROOM_NOT_FOUND',
+            message: 'Room not found'
+        }));
+        return;
+    }
 
     const player = room.players.get(playerId);
-    if (!player || !player.isHost) return;
+    if (!player || !player.isHost) {
+        ws.send(JSON.stringify({
+            type: 'GAME_START_ERROR',
+            error: 'NOT_HOST',
+            message: 'Only the host can start the game'
+        }));
+        return;
+    }
+
+    // Check if all players have selected an element
+    for (const [pid, playerData] of room.players.entries()) {
+        if (!playerData.element) {
+            ws.send(JSON.stringify({
+                type: 'GAME_START_ERROR',
+                error: 'ELEMENT_REQUIRED',
+                message: 'All players must select a character before starting'
+            }));
+            return;
+        }
+    }
 
     // Check if all players are ready and at least 2 players
-    if (roomManager.areAllPlayersReady(roomId) && roomManager.getPlayerCount(roomId) >= 2) {
-        startGame(roomId);
+    if (!roomManager.areAllPlayersReady(roomId)) {
+        ws.send(JSON.stringify({
+            type: 'GAME_START_ERROR',
+            error: 'NOT_ALL_READY',
+            message: 'All players must be ready before starting'
+        }));
+        return;
     }
+
+    if (roomManager.getPlayerCount(roomId) < 2) {
+        ws.send(JSON.stringify({
+            type: 'GAME_START_ERROR',
+            error: 'NOT_ENOUGH_PLAYERS',
+            message: 'At least 2 players are required to start the game'
+        }));
+        return;
+    }
+
+    startGame(roomId);
 }
 
 function startGame(roomId) {
@@ -297,6 +342,17 @@ function startGame(roomId) {
             arena: room.gameEngine.arena
         }));
     });
+
+    // Mark room as game started
+    room.gameStarted = true;
+    
+    // Remove from public rooms list if it's a public room
+    if (!room.isPrivate) {
+        const index = roomManager.publicRooms.indexOf(roomId);
+        if (index > -1) {
+            roomManager.publicRooms.splice(index, 1);
+        }
+    }
 
     // Broadcast game started
     roomManager.broadcastToRoom(roomId, {

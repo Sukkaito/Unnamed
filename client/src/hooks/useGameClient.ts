@@ -27,6 +27,7 @@ export function useGameClient() {
   const [lobbyState, setLobbyState] = useState<any>(null);
   const [isInLobby, setIsInLobby] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isKicked, setIsKicked] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -202,6 +203,13 @@ export function useGameClient() {
                 content: 'Game starting!'
               }]);
               break;
+            case 'GAME_START_ERROR':
+              setConnectionError(message.message || 'Cannot start game. Please check all players have selected a character.');
+              setChatMessages(prev => [...prev, {
+                type: 'system',
+                content: message.message || 'Cannot start game. All players must select a character.'
+              }]);
+              break;
             case 'INIT':
               setPlayerId(message.playerId);
               setArena(message.arena);
@@ -277,11 +285,15 @@ export function useGameClient() {
               pendingInitPayloadRef.current = null;
               break;
             case 'JOIN_ERROR':
-              setConnectionError(message.error === 'ROOM_NOT_FOUND' 
-                ? 'Room not found. Please check the room code.' 
-                : message.error === 'ROOM_FULL'
-                ? 'Room is full.'
-                : 'Failed to join room.');
+              if (message.error === 'ROOM_NOT_FOUND') {
+                setConnectionError('Room not found. Please check the room code.');
+              } else if (message.error === 'GAME_STARTED') {
+                setConnectionError('Cannot join room. The game has already started.');
+              } else if (message.error === 'ROOM_FULL') {
+                setConnectionError('Room is full. Please try another room.');
+              } else {
+                setConnectionError('Failed to join room.');
+              }
               pendingInitPayloadRef.current = null;
               break;
           }
@@ -294,6 +306,16 @@ export function useGameClient() {
         console.log('Disconnected from server', event.code, event.reason);
         setIsConnecting(false);
         wsRef.current = null;
+        
+        // Check if player was kicked
+        if (event.reason === 'Kicked by host' || event.code === 1000 && event.reason?.includes('Kicked')) {
+          setIsKicked(true);
+          setIsInLobby(false);
+          setLobbyState(null);
+          setConnectionError('You have been kicked from the room by the host.');
+          pendingInitPayloadRef.current = null;
+          return; // Don't reconnect if kicked
+        }
         
         // Only auto-reconnect if we had a playerId (were actually playing)
         if (playerId && event.code !== 1000) {
@@ -886,6 +908,8 @@ export function useGameClient() {
     chatMessages,
     connectionError,
     isConnecting,
+    isKicked,
+    setIsKicked,
     joinGame,
     joinPublicGame,
     joinPrivateGame,

@@ -49,7 +49,8 @@ export function LobbyScreen({
   const currentPlayer = lobbyState.players.find(p => p.id === currentPlayerId);
   const isHost = currentPlayer?.isHost || false;
   const allReady = lobbyState.players.length >= 2 && lobbyState.players.every(p => p.isReady);
-  const canStart = isHost && allReady;
+  const allHaveElements = lobbyState.players.every(p => p.element);
+  const canStart = isHost && allReady && allHaveElements && lobbyState.players.length >= 2;
 
   const availableElements: Element[] = ['dog', 'duck', 'penguin', 'whale'];
 
@@ -478,21 +479,23 @@ export function LobbyScreen({
             </button>
 
             {/* Start Game Button (Host only) */}
-            {canStart && (
+            {isHost && (
               <button
                 onClick={onStartGame}
+                disabled={!canStart}
                 style={{
                   padding: '20px',
-                  background: '#4ECDC4',
+                  background: canStart ? '#4ECDC4' : '#CCCCCC',
                   border: '2px solid #000',
                   borderRadius: '15px',
-                  color: '#000',
+                  color: canStart ? '#000' : '#666',
                   fontSize: '20px',
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
                   letterSpacing: '2px',
-                  cursor: 'pointer',
-                  animation: 'pulse 2s infinite'
+                  cursor: canStart ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s',
+                  opacity: canStart ? 1 : 0.6
                 }}
               >
                 Start Game
