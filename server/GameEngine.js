@@ -37,6 +37,8 @@ class GameEngine {
             winnerName: null
         };
         this.lastUpdateTime = Date.now();
+        this.previousPlayerStates = {}; // Track previous player states for delta
+        this.changedCells = new Set(); // Track changed cells
     }
 
     createEmptyGrid() {
@@ -178,6 +180,7 @@ class GameEngine {
         }
 
         this.gameState.cells[row][col] = cellData;
+        this.changedCells.add(`${row}:${col}`); // Track cell change
 
         if (isTrail) {
             player.isOutside = true;
@@ -199,6 +202,7 @@ class GameEngine {
                         clearedSafe += 1;
                     }
                     this.gameState.cells[row][col] = null;
+                    this.changedCells.add(`${row}:${col}`); // Track cell change
                 }
             }
         }
@@ -367,6 +371,7 @@ class GameEngine {
                     ownerId: playerId,
                     color: player.color
                 };
+                this.changedCells.add(`${row}:${col}`); // Track cell change
                 captured += 1;
             }
         }
@@ -567,6 +572,7 @@ class GameEngine {
                     color: player.color,
                     isTrail: false
                 };
+                this.changedCells.add(`${row}:${col}`); // Track cell change
 
                 if (isNewCell) {
                     player.area += 1;
@@ -755,6 +761,80 @@ class GameEngine {
         this.gameState.gameOver = false;
         this.gameState.winnerId = null;
         this.gameState.winnerName = null;
+    }
+
+    getStateDelta() {
+        const delta = {
+            players: {},
+            cells: [],
+            gameTime: this.gameState.gameTime,
+            timeRemaining: this.gameState.timeRemaining,
+            gameOver: this.gameState.gameOver,
+            winnerId: this.gameState.winnerId,
+            winnerName: this.gameState.winnerName
+        };
+
+        // Check for changed players
+        for (const playerId in this.gameState.players) {
+            const currentPlayer = this.gameState.players[playerId];
+            const previousPlayer = this.previousPlayerStates[playerId];
+
+            if (!previousPlayer ||
+                currentPlayer.x !== previousPlayer.x ||
+                currentPlayer.y !== previousPlayer.y ||
+                currentPlayer.direction !== previousPlayer.direction ||
+                currentPlayer.area !== previousPlayer.area) {
+                delta.players[playerId] = currentPlayer;
+            }
+        }
+
+        // Check for removed players
+        for (const playerId in this.previousPlayerStates) {
+            if (!this.gameState.players[playerId]) {
+                delta.players[playerId] = null; // Mark as removed
+            }
+        }
+
+        // Get changed cells
+        this.changedCells.forEach(cellKey => {
+            const [row, col] = cellKey.split(':').map(Number);
+            const cell = this.gameState.cells[row]?.[col];
+            delta.cells.push({
+                row,
+                col,
+                cell: cell || null
+            });
+        });
+
+        // Update previous states
+        this.previousPlayerStates = JSON.parse(JSON.stringify(this.gameState.players));
+        this.changedCells.clear();
+
+        return delta;
+    }
+
+    hasChanges() {
+        // Check if there are any changes to send
+        for (const playerId in this.gameState.players) {
+            const currentPlayer = this.gameState.players[playerId];
+            const previousPlayer = this.previousPlayerStates[playerId];
+
+            if (!previousPlayer ||
+                currentPlayer.x !== previousPlayer.x ||
+                currentPlayer.y !== previousPlayer.y ||
+                currentPlayer.direction !== previousPlayer.direction ||
+                currentPlayer.area !== previousPlayer.area) {
+                return true;
+            }
+        }
+
+        for (const playerId in this.previousPlayerStates) {
+            if (!this.gameState.players[playerId]) {
+                return true;
+            }
+        }
+
+        return this.changedCells.size > 0;
     }
 }
 
