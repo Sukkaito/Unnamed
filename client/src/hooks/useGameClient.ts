@@ -3,7 +3,7 @@ import { GameState, Player, Direction, Element, Arena, Camera, ServerMessage, Ti
 import { ImageLoader } from '../utils/imageLoader';
 import { GameRenderer } from '../utils/gameRenderer';
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL = import.meta.env.VITE_SERVER_WS || 'ws://localhost:8080';
 const CELL_SIZE = 48;
 const PLAYER_SIZE = 48;
 
