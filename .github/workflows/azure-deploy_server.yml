@@ -3,6 +3,10 @@
 
 name: Build and deploy Node.js app to Azure Web App - server
 
+defaults:
+  run:
+    working-directory: ./server
+
 on:
   push:
     branches:
@@ -62,4 +66,5 @@ jobs:
           app-name: 'server'
           slot-name: 'Production'
           package: .
+
           
