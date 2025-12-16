@@ -11,6 +11,8 @@ on:
   push:
     branches:
       - azure-deploy
+    paths-ignore:
+      - 'client/**'
   workflow_dispatch:
 
 jobs:
@@ -68,3 +70,4 @@ jobs:
           package: .
 
           
+
