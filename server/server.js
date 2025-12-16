@@ -2,13 +2,14 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const RoomManager = require('./RoomManager');
 
-const server = new WebSocket.Server({ port: 8080 });
+const PORT = process.env.WS_PORT || 8081;
+const server = new WebSocket.Server({ port: PORT });
 const roomManager = new RoomManager();
 
 // Map to track which room each player is in
 const playerRoomMap = new Map(); // playerId -> roomId
 
-console.log('Multiplayer Game Server running on port 8080');
+console.log(`Multiplayer Game Server running on port ${PORT}`);
 
 server.on('connection', (ws) => {
     const playerId = uuidv4();
