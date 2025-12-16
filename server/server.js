@@ -2,8 +2,8 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const RoomManager = require('./RoomManager');
 
-const PORT = process.env.WS_PORT || 8081;
-const server = new WebSocket.Server({ port: PORT });
+const PORT = process.env.PORT || 8080;
+const server = new WebSocket.Server({ port: PORT, perMessageDeflate: false });
 const roomManager = new RoomManager();
 
 // Map to track which room each player is in
