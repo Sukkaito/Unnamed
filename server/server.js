@@ -2,13 +2,14 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 const RoomManager = require('./RoomManager');
 
-const server = new WebSocket.Server({ port: 8080 });
+const PORT = process.env.PORT || 8080;
+const server = new WebSocket.Server({ port: PORT, perMessageDeflate: false });
 const roomManager = new RoomManager();
 
 // Map to track which room each player is in
 const playerRoomMap = new Map(); // playerId -> roomId
 
-console.log('Multiplayer Game Server running on port 8080');
+console.log(`Multiplayer Game Server running on port ${PORT}`);
 
 server.on('connection', (ws) => {
     const playerId = uuidv4();
@@ -361,18 +362,35 @@ function startGame(roomId) {
 
     // Start game loop for this room
     if (!room.gameLoopInterval) {
+        let frameCount = 0;
+        const FULL_STATE_INTERVAL = 60; // Send full state every 60 frames (~1 second)
+
         room.gameLoopInterval = setInterval(() => {
             const currentRoom = roomManager.getRoom(roomId);
             if (!currentRoom) return;
 
             currentRoom.gameEngine.update();
-            const gameState = currentRoom.gameEngine.getGameState();
-            
-            roomManager.broadcastToRoom(roomId, {
-                type: 'GAME_STATE_UPDATE',
-                gameState: gameState,
-                timestamp: Date.now()
-            });
+            frameCount++;
+
+            // Send full state periodically for synchronization
+            if (frameCount % FULL_STATE_INTERVAL === 0) {
+                const gameState = currentRoom.gameEngine.getGameState();
+                roomManager.broadcastToRoom(roomId, {
+                    type: 'GAME_STATE_UPDATE',
+                    gameState: gameState,
+                    timestamp: Date.now()
+                });
+            } else {
+                // Send delta updates
+                if (currentRoom.gameEngine.hasChanges()) {
+                    const delta = currentRoom.gameEngine.getStateDelta();
+                    roomManager.broadcastToRoom(roomId, {
+                        type: 'GAME_STATE_DELTA',
+                        delta: delta,
+                        timestamp: Date.now()
+                    });
+                }
+            }
         }, 1000 / 60);
     }
 }

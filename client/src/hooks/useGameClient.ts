@@ -3,7 +3,7 @@ import { GameState, Player, Direction, Element, Arena, Camera, ServerMessage, Ti
 import { ImageLoader } from '../utils/imageLoader';
 import { GameRenderer } from '../utils/gameRenderer';
 
-const WS_URL = 'ws://localhost:8080';
+const WS_URL = import.meta.env.VITE_SERVER_WS || 'ws://localhost:8080';
 const CELL_SIZE = 48;
 const PLAYER_SIZE = 48;
 
@@ -243,6 +243,70 @@ export function useGameClient() {
                   serverTimestamp: message.timestamp
                 });
               }
+              break;
+            case 'GAME_STATE_DELTA':
+              // Apply delta update to current state
+              setGameState(prev => {
+                const newState = { ...prev };
+                const delta = message.delta;
+
+                // Update players
+                if (delta.players) {
+                  newState.players = { ...prev.players };
+                  for (const playerId in delta.players) {
+                    if (delta.players[playerId] === null) {
+                      // Player removed
+                      delete newState.players[playerId];
+                    } else {
+                      // Player updated or added
+                      newState.players[playerId] = delta.players[playerId];
+                    }
+                  }
+                }
+
+                // Update cells
+                if (delta.cells && delta.cells.length > 0) {
+                  // Ensure cells array exists
+                  if (!newState.cells || newState.cells.length === 0) {
+                    newState.cells = prev.cells;
+                  } else {
+                    newState.cells = prev.cells.map(row => [...row]);
+                  }
+                  
+                  delta.cells.forEach((cellUpdate: any) => {
+                    const { row, col, cell } = cellUpdate;
+                    if (newState.cells[row]) {
+                      newState.cells[row][col] = cell;
+                    }
+                  });
+                }
+
+                // Update game time and timer
+                // if (delta.gameTime !== undefined) {
+                //   newState.gameTime = delta.gameTime;
+                // }
+                if (delta.timeRemaining !== undefined) {
+                  newState.timeRemaining = delta.timeRemaining;
+                  if (message.timestamp) {
+                    setTimerSync({
+                      remainingMs: delta.timeRemaining,
+                      syncedAt: performance.now(),
+                      serverTimestamp: message.timestamp
+                    });
+                  }
+                }
+                if (delta.gameOver !== undefined) {
+                  newState.gameOver = delta.gameOver;
+                }
+                // if (delta.winnerId !== undefined) {
+                //   newState.winnerId = delta.winnerId;
+                // }
+                if (delta.winnerName !== undefined) {
+                  newState.winnerName = delta.winnerName;
+                }
+
+                return newState;
+              });
               break;
             case 'PLAYER_JOINED':
               setChatMessages(prev => [...prev, {
